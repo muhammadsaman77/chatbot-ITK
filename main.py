@@ -1,10 +1,12 @@
-from typing import Union
-
+from .routers import chats
 from fastapi import FastAPI
 
+
+
+
 app = FastAPI()
+app.include_router(chats.router)
 
-@app.get("/")
+@app.get("/ping")
 async def root():
-  return {"message": "Hello World"}
-
+  return {"message": "PONG"}
