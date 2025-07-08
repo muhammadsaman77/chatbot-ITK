@@ -1,0 +1,9 @@
+services:
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3336:3306"
+    environment:
+      MYSQL_DATABASE: chatbot_ITK
+      MYSQL_USER: user
+      MYSQL_ROOT_PASSWORD: secret
