@@ -54,6 +54,13 @@ async def login(user_request:LoginUser,response:Response):
       "message": "Login successfully",
       "payload": {
           "token": token,
+          "user": {
+            "id": str(user.id),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "role": user.role.name
+          }
       }
         
   }
@@ -76,6 +83,30 @@ async def register(request: RegisterUser,response: Response):
       
       "message": "Register successfully",
       "payload": {
-          "token": token
+          "token": token,
+          "user": {
+            "id": str(result.inserted_id),
+            "first_name": request.first_name,
+            "last_name": request.last_name,
+            "email": request.email,
+            "role": "user"
+          }
       }
+  }
+
+@router.get("/get-me")
+async def get_me(current_user: Annotated[str, Depends(get_current_user)]):
+  print(current_user["user_id"])
+  user = await User.get(current_user["user_id"])
+  await user.fetch_link(User.role)
+  payload = {
+    "id": str(user.id),
+    "first_name": user.first_name,
+    "last_name": user.last_name,
+    "email": user.email,
+    "role": user.role.name
+  }
+  return {
+    "message": "Get me successfully",
+    "payload": payload
   }

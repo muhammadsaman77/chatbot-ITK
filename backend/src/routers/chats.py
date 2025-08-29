@@ -2,25 +2,31 @@ from typing import AsyncGenerator, Annotated
 from fastapi import APIRouter, Depends,Form, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from ..configs import llm
+
+from src.services.rag_service import create_prompt_llm
+from ..configs.global_instances import (
+    get_llama_instance,
+    get_vector_db_instance,
+)
 from ..routers.auth import get_current_user
 
 import asyncio
 
 
 router = APIRouter(prefix="/chats", tags=["chat"])
-
 @router.get("/")
 async def get():
   return {"message": "Hello World"}
 
 
 async def stream_llm_response(prompt:str)-> AsyncGenerator[str, None]:
-  llama = llm.init_llm(model="llama3.2:latest")
-  for token in llama.stream(prompt):
+  llama = get_llama_instance()
+  vector_db = get_vector_db_instance()
+  formatted_prompt = create_prompt_llm(vector_db, prompt)
+  print(formatted_prompt)
+  for token in llama.stream(formatted_prompt):
     yield str(token)
     await asyncio.sleep(0.01)
-    
 @router.post("/")
 async def generate_response_stream(current_user: Annotated[str,Depends(get_current_user)],question: str = Form(...)):
   if (current_user["role"]!= "user"):
