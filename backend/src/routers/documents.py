@@ -59,6 +59,7 @@ async def download(current_user: Annotated[str, Depends(get_current_user)], file
 async def post(
     current_user: Annotated[str, Depends(get_current_user)],
     description: str = Form(...),
+    tag: str = Form(...),
     file: UploadFile = File(...)
 ):
     suffix = Path(file.filename or "").suffix
@@ -69,7 +70,7 @@ async def post(
     try:
         now_str = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         object_name = f"documents/{now_str}_{Path(file.filename).name}"
-        text_pdf = extract_text_from_pdf(file_path=tmp_path,source=object_name)
+        text_pdf = extract_text_from_pdf(file_path=tmp_path,source=object_name,tag=tag)
         chunks = chunking_document(text_pdf, chunk_size=200, chunk_overlap=100)
         filtered_chunks = filter_complex_metadata(chunks)
         vector_db = get_vector_db_instance()
@@ -119,7 +120,7 @@ async def delete(current_user: Annotated[str,Depends(get_current_user)], id:str)
   # Get filename for vector database deletion
   object_name = document.file
   filename = object_name.split("/")[-1]  
-  deleted_chunks = delete_documents_by_source(vector_db, object_name)
+  delete_documents_by_source(vector_db, object_name)
   
   # Delete from MinIO
   client.remove_object(bucket_name=bucket_name, object_name=object_name)

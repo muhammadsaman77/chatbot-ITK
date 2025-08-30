@@ -5,17 +5,19 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores.utils import filter_complex_metadata
 
 import re
-def extract_text_from_pdf(file_path,source) -> list:
+def extract_text_from_pdf(file_path,source,tag) -> list:
     loader = PyMuPDFLoader(file_path)
     text_pages = []
     for page in loader.lazy_load():
         text = page.page_content
         if text.strip():
             text_pages.append(Document(page_content=text, metadata={
-                "page": page.metadata["page"],
-                "source": source
+                "page": page.metadata["page"] + 1,
+                "source": source,
+                "tag": tag
             }))
 
+        print(page.metadata)
     return text_pages
 
 def clean_text(text: str) -> str:

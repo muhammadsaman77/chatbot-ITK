@@ -4,5 +4,6 @@ def init_embedding(model_name="firqaaa/indo-sentence-bert-base"):
     model_name=model_name,
     model_kwargs={"device": "cuda"}
   )
+  print(embed_model)
   return embed_model
   

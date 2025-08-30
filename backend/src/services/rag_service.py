@@ -1,6 +1,13 @@
+from datetime import timedelta
+import os
 from uuid import uuid4
 from langchain_chroma import Chroma
 from langchain.schema import Document
+
+from src.configs.minio import init_minio
+
+MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME")
+minio_client = init_minio()
 
 def storing_to_vector_db(vector_db:Chroma,documents:list[Document]):
   uuids = [str(uuid4()) for _ in range(len(documents))]
@@ -21,7 +28,7 @@ def search_with_neighbors(vector_db:Chroma,query, k=1, neighbor_window=1):
   neighbors = []
   seen_indexes = set()
 
-  for doc in retrieve_docs:  # ✅ tidak unpack
+  for doc in retrieve_docs: 
       idx = next((i for i, d in enumerate(docs) if d.page_content == doc.page_content), None)
       if idx is None:
           continue
@@ -42,6 +49,28 @@ def search_with_neighbors(vector_db:Chroma,query, k=1, neighbor_window=1):
 
 def create_prompt_llm(vector_db:Chroma,query):
   chunks = search_with_neighbors(vector_db,query, k=5, neighbor_window=1)
+  sources_pages = list()
+  label_exist = set()
+  for doc in chunks["context_with_neighbors"]:
+    if doc.metadata:
+      tag = doc.metadata.get("tag", "Unknown")
+      source = doc.metadata.get("source", "Unknown")
+      page = doc.metadata.get("page", None)
+      if source and page:
+        label = f"{tag} Hal {page}"
+        if label not in label_exist:
+          label_exist.add(label)
+          presigned_url = minio_client.presigned_get_object(
+            bucket_name=MINIO_BUCKET_NAME,
+            object_name=source,
+            expires=timedelta(hours=24)
+          )
+          sources_pages.append({
+            "label": label,
+            "page": page,
+            "link": presigned_url,
+          })
+      
   
   # Format context from chunks
   context_text = ""
@@ -64,7 +93,10 @@ Instruksi:
 - Jangan membuat jawaban dari asumsi atau tebakan."""
   
   formatted_prompt = template.format(context=context_text, question=query)
-  return formatted_prompt
+  return {
+    "formatted_prompt": formatted_prompt,
+    "sources_pages": sources_pages
+  }
 
 def delete_documents_by_source(vector_db: Chroma, source_filename: str):
 
@@ -84,8 +116,8 @@ def list_sources_in_vector_db(vector_db: Chroma):
         if all_data.get("metadatas"):
             for metadata in all_data["metadatas"]:
                 if metadata and metadata.get("source"):
-                    sources.add(metadata["source"])
-        
+                    sources.add(metadata["source"])        
+                    vector_db._collection.delete(where={"source": metadata["source"]})
         return list(sources)
     except Exception as e:
         print(f"Error listing sources: {e}")
